@@ -2,6 +2,51 @@
 
 API de predição de sobrevivência do Titanic usando machine learning, com arquitetura moderna e boas práticas de MLOps.
 
+## Arquitetura da Solução
+
+### Visão Geral
+A solução é construída seguindo uma arquitetura moderna de MLOps, com os seguintes componentes principais:
+
+#### 1. Camada de Aplicação
+- **API REST**: Implementada com FastAPI, fornecendo endpoints para predições e monitoramento
+- **Pipeline de ML**: Pipeline completo de features e modelo treinado
+- **Monitoramento**: Métricas, logs e health checks
+
+#### 2. Camada de Infraestrutura
+- **Kubernetes**: Orquestração de containers e gerenciamento de recursos
+- **Nginx Ingress**: Roteamento e balanceamento de carga
+- **Persistent Volumes**: Armazenamento persistente para modelos
+- **ConfigMaps/Secrets**: Gerenciamento de configurações e segredos
+
+#### 3. Camada de Monitoramento
+- **Prometheus**: Coleta de métricas
+- **Logs Estruturados**: Logs em formato JSON para melhor análise
+- **Health Checks**: Endpoints de verificação de saúde
+- **Métricas de Sistema**: Monitoramento de CPU, memória e performance
+
+#### 4. Camada de Segurança
+- **TLS/HTTPS**: Comunicação segura via Ingress
+- **CORS**: Controle de acesso configurado
+- **Headers de Segurança**: Proteções básicas via Ingress
+
+### Fluxo de Dados
+1. Cliente faz requisição HTTPS para a API
+2. Nginx Ingress roteia a requisição para o serviço
+3. API processa a requisição usando o pipeline de ML
+4. Resultados são retornados ao cliente
+5. Métricas e logs são coletados para monitoramento
+
+### Escalabilidade
+- Deployment com 3 réplicas fixas
+- Rolling updates para zero downtime
+- Load balancing via Nginx Ingress
+
+### Alta Disponibilidade
+- 3 réplicas do serviço
+- Rolling updates configurados
+- Health checks e liveness probes
+- Backup e restauração de modelos via scripts dedicados
+
 ## Estrutura do Projeto
 
 ```
@@ -9,7 +54,6 @@ titanic-prediction/
 ├── app/                    # Código da aplicação
 │   ├── api/               # Endpoints da API
 │   ├── core/              # Configurações e utilitários
-│   ├── feature_store/     # Gerenciamento de features
 │   ├── ml/                # Código relacionado ao modelo
 │   └── monitoring/        # Métricas e monitoramento
 ├── kubernetes/            # Configurações do Kubernetes
@@ -41,9 +85,26 @@ git clone https://github.com/gabilima/titanic-prediction.git
 cd titanic-prediction
 ```
 
-2. Instale as dependências:
+2. Execute o script de setup:
 ```bash
-pip install -r requirements/dev.txt
+chmod +x setup.sh
+./setup.sh
+```
+
+Este script irá:
+- Criar um ambiente virtual Python
+- Instalar as dependências do projeto
+- Configurar as variáveis de ambiente
+- Ativar o ambiente virtual automaticamente
+
+3. Ative o ambiente virtual (se ainda não estiver ativo):
+```bash
+source venv/bin/activate
+```
+
+4. Verifique a instalação:
+```bash
+python -c "import app; print('Instalação concluída com sucesso!')"
 ```
 
 ## Treinamento do Modelo
@@ -102,24 +163,23 @@ kubectl get pods -n titanic-prediction
 
 - `GET /api/v1/health`: Verifica a saúde da API
 - `POST /api/v1/predict`: Faz predições de sobrevivência
+- `POST /api/v1/batch_predict`: Faz predições em lote
 - `GET /metrics`: Métricas do Prometheus
 - `GET /docs`: Documentação Swagger/OpenAPI
 
 ## Monitoramento
 
 A aplicação inclui:
-- Métricas do Prometheus
-- Logs estruturados
-- Health checks
-- Métricas de performance
-- Monitoramento de drift de features
+- Métricas do Prometheus (CPU, memória, latência)
+- Logs estruturados em JSON
+- Health checks com métricas de sistema
+- Monitoramento de performance da API
 
 ## Segurança
 
-- TLS/HTTPS
-- Rate limiting
+- TLS/HTTPS via Ingress
 - CORS configurado
-- Headers de segurança
+- Headers de segurança básicos
 - Usuário não-root no container
 
 ## Gerenciamento de Modelos
@@ -148,4 +208,4 @@ O projeto usa:
 - Nginx Ingress Controller
 - Persistent Volumes para modelos
 - ConfigMaps e Secrets para configurações
-- Prometheus e Grafana para monitoramento
+- Prometheus para monitoramento
