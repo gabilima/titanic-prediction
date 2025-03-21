@@ -63,6 +63,8 @@ COPY --from=deps /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9
 COPY --from=deps /usr/local/bin/gunicorn /usr/local/bin/gunicorn
 COPY ./app ./app
 COPY ./models ./models
+COPY ./mlruns ./mlruns
+COPY ./mlartifacts ./mlartifacts
 
 # Create necessary directories with correct permissions
 RUN mkdir -p /app/data/raw /app/data/processed /app/logs \
@@ -78,7 +80,8 @@ ENV ENV=production \
     BATCH_SIZE_LIMIT=100 \
     ENABLE_RESPONSE_COMPRESSION=true \
     COMPRESSION_MINIMUM_SIZE=1000 \
-    PATH="/usr/local/bin:$PATH"
+    PATH="/usr/local/bin:$PATH" \
+    MLFLOW_TRACKING_URI="file:///app/mlruns"
 
 # Switch to non-root user
 USER appuser
