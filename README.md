@@ -107,30 +107,18 @@ cd titanic-prediction
 # Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements/dev.txt
 ```
 
 ### 2. Model Training and Registration
 ```bash
-# Build the feature pipeline
-python scripts/build_pipeline.py
-
-# Register the model in MLflow
-python scripts/register_model.py
-
-# Set up MLOps components
+# Set up all MLOps components
 python scripts/setup_mlops.py
 ```
 
 ### 3. Local Testing
 ```bash
-# Run unit tests
-pytest tests/test_model.py tests/test_pipeline.py tests/test_api.py
-
-# Run integration tests
-pytest tests/test_integration.py
+# Run tests
+pytest tests/
 
 # Run the application locally
 uvicorn app.main:app --reload
