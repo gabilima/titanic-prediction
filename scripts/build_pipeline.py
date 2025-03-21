@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from pathlib import Path
 from app.core.config import settings
-from feature_store.feature_pipeline import (
+from app.feature_store.feature_pipeline import (
     ImputationTransformer,
     EncodingTransformer,
     ScalingTransformer,

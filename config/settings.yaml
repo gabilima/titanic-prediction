@@ -1,0 +1,56 @@
+# Application Settings
+app:
+  name: titanic-prediction
+  version: 1.0.0
+  environment: ${ENV:development}
+
+# Server Configuration
+server:
+  host: 0.0.0.0
+  port: 8000
+  workers: 4
+  timeout: 120
+  cors_origins: ["*"]
+
+# Feature Store Configuration
+feature_store:
+  registry_path: app/feature_store/registry/feature_registry.json
+  offline_store:
+    type: sqlite
+    path: data/feature_store.db
+  online_store:
+    type: redis
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    db: 0
+    ttl: 3600
+
+# Model Configuration
+model:
+  path: models/
+  version: ${MODEL_VERSION:latest}
+  batch_size: 32
+  cache_predictions: true
+  cache_ttl: 3600
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics_path: /metrics
+  collection_interval: 15
+  retention_days: 7
+
+# Logging
+logging:
+  level: ${LOG_LEVEL:INFO}
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: logs/app.log
+  max_size: 100MB
+  backup_count: 5
+
+# Database
+database:
+  url: ${DATABASE_URL:sqlite:///data/app.db}
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30 

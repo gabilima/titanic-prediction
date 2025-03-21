@@ -9,11 +9,19 @@ This script sets up all MLOps components:
 """
 
 import os
+import sys
+import logging
+import subprocess
 import pandas as pd
 from pathlib import Path
+from typing import List, Dict, Any
 
+import mlflow
+from mlflow.tracking import MlflowClient
+from mlflow.entities import ViewType
+from mlflow.models.signature import infer_signature
+from app.feature_store.monitoring import FeatureMonitoring
 from app.core.config import settings
-from feature_store.monitoring import FeatureMonitoring
 from scripts.build_pipeline import build_pipeline
 from scripts.register_model import register_model
 

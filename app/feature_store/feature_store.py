@@ -193,7 +193,7 @@ class FeatureValidator:
 class FeatureRegistry:
     """Registry for feature management and discovery"""
     
-    def __init__(self, registry_path: str = "feature_registry.json"):
+    def __init__(self, registry_path: str = "registry/feature_registry.json"):
         self.registry_path = registry_path
         self.features: Dict[str, Dict[str, Feature]] = {}
         self._load_registry()
@@ -444,7 +444,7 @@ class OfflineFeatureStore:
 class FeatureStore:
     """Feature store for managing feature data"""
     
-    def __init__(self, registry_path: str):
+    def __init__(self, registry_path: str = "registry/feature_registry.json"):
         """Initialize feature store with Redis and SQLite backends"""
         self.registry_path = registry_path
         self.features = {}

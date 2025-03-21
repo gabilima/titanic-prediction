@@ -6,13 +6,17 @@ import sys
 import shutil
 import pytest
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import mlflow
 from fastapi.testclient import TestClient
 import tempfile
+from fastapi import status
+from sklearn.model_selection import train_test_split
 
 from app.main import app
 from app.core.config import settings
+from app.feature_store.feature_store import FeatureStore
 from app.ml.data_validation import (
     DataValidator,
     DatasetMetadata,
@@ -20,6 +24,7 @@ from app.ml.data_validation import (
     FeatureType
 )
 from app.ml.training import train_model
+from app.ml.model import TitanicModel
 
 # Add project root to Python path to import local modules
 project_root = Path(__file__).resolve().parents[1]
@@ -93,6 +98,12 @@ def registry_path():
     # Cleanup after tests
     if os.path.exists(temp_path):
         os.unlink(temp_path)
+
+@pytest.fixture
+def feature_store():
+    """Fixture for feature store instance."""
+    from app.feature_store.feature_store import FeatureStore
+    return FeatureStore()
 
 class TestEndToEndPipeline:
     """End-to-end tests for the complete ML pipeline"""
@@ -241,6 +252,14 @@ class TestMLflowIntegration:
         mlflow.set_tracking_uri("sqlite:///mlflow.db")
         experiment_name = "test_tracking"
         
+        # End any active runs
+        try:
+            if mlflow.active_run() is not None:
+                mlflow.end_run()
+        except Exception:
+            # Ignore errors when trying to end non-existent runs
+            pass
+        
         # Create experiment
         experiment = mlflow.get_experiment_by_name(experiment_name)
         if experiment is None:
@@ -267,72 +286,62 @@ class TestMLflowIntegration:
         assert latest_run["params.test_param"] == "1"
 
 class TestFeatureStore:
-    """Test feature store functionality"""
-    
+    """Tests for the feature store functionality"""
+
     def test_feature_storage_and_retrieval(self, sample_data, registry_path):
         """Test storing and retrieving features from the feature store"""
-        from feature_store.feature_store import FeatureStore
-        
-        # Initialize feature store with registry path
-        store = FeatureStore(registry_path=registry_path)
+        store = FeatureStore()
         
         # Store features
-        feature_group = "passenger_features"
-        passenger_id = "test_passenger"
-        
         store.store_features(
-            feature_group=feature_group,
-            entity_id=passenger_id,
+            feature_group="passenger_features",
+            entity_id="test_entity_id",
             features=sample_data
         )
         
         # Retrieve features
-        retrieved_features = store.get_features(
-            feature_group=feature_group,
-            entity_id=passenger_id
+        retrieved_data = store.get_features(
+            feature_group="passenger_features",
+            entity_id="test_entity_id"
         )
         
-        # Verify features were stored correctly
-        assert retrieved_features == sample_data
-    
+        # Verify data matches
+        assert retrieved_data == sample_data
+
     def test_feature_versioning(self, sample_data, registry_path):
         """Test feature versioning in the feature store"""
-        from feature_store.feature_store import FeatureStore
-        
-        store = FeatureStore(registry_path=registry_path)
-        feature_group = "passenger_features"
-        passenger_id = "test_passenger"
+        store = FeatureStore()
         
         # Store features with version 1
         store.store_features(
-            feature_group=feature_group,
-            entity_id=passenger_id,
+            feature_group="passenger_features",
+            entity_id="test_entity_id",
             features=sample_data,
             version="1.0"
         )
         
-        # Modify features and store as version 2
-        modified_data = sample_data.copy()
-        modified_data["Age"] = 30.0  # Use uppercase "Age" to match the original data
+        # Update features with version 2
+        updated_data = sample_data.copy()
+        updated_data["Age"] = 30.0
         store.store_features(
-            feature_group=feature_group,
-            entity_id=passenger_id,
-            features=modified_data,
+            feature_group="passenger_features",
+            entity_id="test_entity_id",
+            features=updated_data,
             version="2.0"
         )
         
         # Retrieve specific versions
-        v1_features = store.get_features(
-            feature_group=feature_group,
-            entity_id=passenger_id,
+        v1_data = store.get_features(
+            feature_group="passenger_features",
+            entity_id="test_entity_id",
             version="1.0"
         )
-        v2_features = store.get_features(
-            feature_group=feature_group,
-            entity_id=passenger_id,
+        v2_data = store.get_features(
+            feature_group="passenger_features",
+            entity_id="test_entity_id",
             version="2.0"
         )
         
-        # Verify versioning
-        assert v1_features["Age"] == 29.0  # Use uppercase "Age" in assertions
-        assert v2_features["Age"] == 30.0 
+        # Verify versioning works
+        assert v1_data["Age"] == 29.0
+        assert v2_data["Age"] == 30.0 

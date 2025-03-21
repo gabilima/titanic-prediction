@@ -70,25 +70,14 @@ def test_model_save_load(sample_data, tmp_path):
     model = TitanicModel()
     model.train(X, y)
 
-    # Test save
+    # Save model to local file
     save_path = Path(tmp_path) / "test_model.joblib"
-    try:
-        # First try MLflow save
-        saved_path = model.save()
-        assert saved_path is not None
-    except Exception:
-        # Fallback to local file save
-        saved_path = model.save(save_path)
-        assert saved_path.exists()
+    saved_path = model.save(save_path)
+    assert saved_path.exists()
 
-    # Test load
+    # Load model from local file
     loaded_model = TitanicModel()
-    try:
-        # First try MLflow load
-        loaded_model.load()
-    except Exception:
-        # Fallback to local file load
-        loaded_model.load(save_path)
+    loaded_model.load(save_path)
 
     # Verify predictions are consistent
     X_test = X[:1]  # Use first sample for prediction test

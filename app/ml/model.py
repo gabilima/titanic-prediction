@@ -217,16 +217,26 @@ class TitanicModel:
         }
     
     @timing_decorator("save_model")
-    def save(self, filepath: Optional[Path] = None) -> Path:
-        """Save model to MLflow."""
+    def save(self, filepath: Optional[Union[str, Path]] = None) -> Path:
+        """Save model to MLflow or local file."""
         if self.model is None:
             raise ValueError("No model to save")
         
-        # Generate a unique run name
-        run_name = f"model_save_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
+        # If filepath is provided, save locally
+        if filepath is not None:
+            # Convert string to Path if necessary
+            filepath = Path(filepath)
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            joblib.dump(self.model, filepath)
+            logger.info(f"Model saved to {filepath} using joblib")
+            return filepath
         
+        # Otherwise, try MLflow
         try:
-            # Try to save with MLflow first
+            # Generate a unique run name
+            run_name = f"model_save_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Try to save with MLflow
             with mlflow.start_run(run_name=run_name):
                 self.mlflow_manager.log_model(
                     self.model,
@@ -237,7 +247,6 @@ class TitanicModel:
             return Path(self.mlflow_manager.tracking_uri) / run_name
         except Exception as e:
             logger.warning(f"Failed to save model to MLflow: {str(e)}")
-            logger.info("Falling back to joblib for model saving")
             
             # Save with joblib as fallback
             if filepath is None:

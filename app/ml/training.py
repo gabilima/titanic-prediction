@@ -48,75 +48,73 @@ def load_data(data_path: Path) -> pd.DataFrame:
     df = standardize_column_names(df)
     return df
 
-def train_model():
-    """Train a new model on the Titanic dataset."""
+@timing_decorator("train_model")
+def train_model(
+    data: pd.DataFrame = None,
+    data_path: Path = None,
+    experiment_name: str = settings.MLFLOW_EXPERIMENT_NAME,
+    model_path: str = settings.MODEL_PATH
+) -> None:
+    """Train a new model and track with MLflow.
+    
+    Args:
+        data: Optional pandas DataFrame containing the training data
+        data_path: Optional path to the training data CSV file
+        experiment_name: Name of the MLflow experiment
+        model_path: Path where to save the trained model
+    """
     logger.info("Starting model training")
     
-    try:
-        # Load and preprocess data
-        data_path = settings.DATA_DIR / "raw" / "train.csv"
-        df = pd.read_csv(data_path)
-        
-        # Validate required features
-        missing_features = [f for f in settings.REQUIRED_FEATURES if f not in df.columns]
-        if missing_features:
-            raise ValueError(f"Missing required features: {missing_features}")
-        
-        # Split features and target
-        X = df[settings.REQUIRED_FEATURES]
-        y = df['Survived']
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=settings.MODEL_RANDOM_STATE
-        )
-        
-        # Create and fit preprocessing pipeline
-        pipeline = train_preprocessing_pipeline(X_train)
-        
-        # Transform data
-        X_train_transformed = pipeline.transform(X_train)
-        X_test_transformed = pipeline.transform(X_test)
-        
-        # Save pipeline
-        save_pipeline(pipeline)
-        
-        # Initialize and train model
-        model = TitanicModel()
-        
-        # Start MLflow run
-        with mlflow.start_run(run_name="titanic_training") as run:
-            # Train the model
-            model.train(X_train_transformed, y_train)
-            
-            # Evaluate model
-            metrics = model.evaluate(X_test_transformed, y_test)
-            logger.info(f"Model evaluation metrics: {metrics}")
-            
-            # Log metrics
-            mlflow.log_metrics(metrics)
-            
-            # Log model with preprocessing pipeline
-            mlflow.sklearn.log_model(
-                sk_model=model.model,
-                artifact_path="model",
-                registered_model_name=settings.MLFLOW_MODEL_NAME
-            )
-            
-            # Save run ID
-            run_id = run.info.run_id
-            logger.info(f"Model training completed. Run ID: {run_id}")
-            
-            # Save model locally as well
-            model_path = settings.MODEL_PATH / settings.DEFAULT_MODEL_FILENAME
-            joblib.dump(model.model, model_path)
-            logger.info(f"Model saved locally to {model_path}")
-        
-        return model, metrics
-        
-    except Exception as e:
-        logger.error(f"Model training failed: {str(e)}")
-        raise
+    # Load data if not provided
+    if data is None:
+        if data_path is None:
+            data_path = Path(settings.TRAIN_DATA_PATH)
+        data = load_data(data_path)
+    
+    # Split features and target
+    X = data.drop('Survived', axis=1)
+    y = data['Survived']
+    
+    # Split into train and validation sets
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    
+    # Train preprocessing pipeline
+    pipeline = train_preprocessing_pipeline(X_train)
+    
+    # Transform data
+    X_train_transformed = pipeline.transform(X_train)
+    X_val_transformed = pipeline.transform(X_val)
+    
+    # Initialize and train model
+    model = TitanicModel()
+    model.train(X_train_transformed, y_train)
+    
+    # Evaluate model
+    train_metrics = model.evaluate(X_train_transformed, y_train)
+    val_metrics = model.evaluate(X_val_transformed, y_val)
+    
+    logger.info(f"Training metrics: {train_metrics}")
+    logger.info(f"Validation metrics: {val_metrics}")
+    
+    # Save pipeline and model
+    save_pipeline(pipeline, model_path)
+    model.save(model_path)
+    
+    # Log metrics with MLflow
+    mlflow_manager.log_metrics({
+        'training_accuracy': train_metrics['accuracy'],
+        'validation_accuracy': val_metrics['accuracy'],
+        'training_precision': train_metrics['precision'],
+        'validation_precision': val_metrics['precision'],
+        'training_recall': train_metrics['recall'],
+        'validation_recall': val_metrics['recall'],
+        'training_f1': train_metrics['f1_score'],
+        'validation_f1': val_metrics['f1_score']
+    })
+    
+    logger.info("Model training completed successfully")
 
 if __name__ == "__main__":
     run_id = train_model()

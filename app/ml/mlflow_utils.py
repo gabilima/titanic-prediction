@@ -61,8 +61,7 @@ class MLflowManager:
         Args:
             params: Dictionary of parameters to log
         """
-        for key, value in params.items():
-            self.client.log_param(self.client.get_run_context().run_id, key, value)
+        mlflow.log_params(params)
     
     def log_metrics(self, metrics: Dict[str, float]) -> None:
         """
@@ -71,8 +70,7 @@ class MLflowManager:
         Args:
             metrics: Dictionary of metrics to log
         """
-        for key, value in metrics.items():
-            self.client.log_metric(self.client.get_run_context().run_id, key, value)
+        mlflow.log_metrics(metrics)
     
     def log_model(self, model, artifact_path, registered_model_name=None):
         """Log a model to MLflow and optionally register it."""
