@@ -69,20 +69,44 @@ htmlcov/
 .cache
 coverage.xml
 *.cover
+.hypothesis/
+.pytest_cache/
 
-# Mac OS
-.DS_Store
+# MLflow
+mlruns/
+mlartifacts/
+outputs/
+
+# Model files and data
+*.h5
+*.pkl
+*.joblib
+*.model
+models/*.joblib
+models/*.pkl
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
 
 # Docker
 .docker/
+.dockerignore
 
-# Distribution / packaging
-.Python
-*.manifest
-*.spec
+# Project specific files
+case_description.md
 
-# Unit test / coverage reports
-nosetests.xml
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraformrc
+terraform.rc
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
 
 # OS specific
 .DS_Store?
