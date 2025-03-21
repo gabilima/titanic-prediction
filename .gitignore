@@ -25,6 +25,9 @@ venv/
 ENV/
 env/
 
+# Python Version Management
+.python-version
+
 # IDE
 .idea/
 .vscode/
@@ -83,6 +86,8 @@ Thumbs.db
 .docker/
 .dockerignore
 
+# Project specific files
+case_description.md
 
 # Terraform
 .terraform/
