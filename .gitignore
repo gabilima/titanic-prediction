@@ -91,10 +91,6 @@ data/processed/*
 
 # Docker
 .docker/
-.dockerignore
-
-# Project specific files
-case_description.md
 
 # Terraform
 .terraform/
