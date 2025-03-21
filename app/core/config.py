@@ -51,7 +51,7 @@ class Settings(BaseSettings):
         raise ValueError(v)
     
     # ML Model Settings
-    MODEL_PATH: Path = BASE_DIR / "models"
+    MODEL_PATH: Path = BASE_DIR / "model-files"
     DEFAULT_MODEL_FILENAME: str = "titanic_model.joblib"
     FEATURE_PIPELINE_FILENAME: str = "feature_pipeline.joblib"
     VERSION: str = os.getenv("MODEL_VERSION", "latest")
@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     # MLflow Settings
     MLFLOW_TRACKING_URI: str = os.getenv(
         "MLFLOW_TRACKING_URI",
-        "file://" + str(Path(__file__).resolve().parent.parent.parent / "mlruns")
+        str(BASE_DIR / "model-files" / "mlruns")
     )
     MLFLOW_EXPERIMENT_NAME: str = os.getenv("MLFLOW_EXPERIMENT_NAME", "titanic_survival_prediction")
     MLFLOW_MODEL_NAME: str = os.getenv("MLFLOW_MODEL_NAME", "titanic_model")
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     MLFLOW_REGISTRY_URI: str = os.getenv("MLFLOW_REGISTRY_URI", "")  # Same as tracking URI if empty
     MLFLOW_ARTIFACT_LOCATION: str = os.getenv(
         "MLFLOW_ARTIFACT_LOCATION",
-        str(Path(__file__).resolve().parent.parent.parent / "mlartifacts")
+        str(BASE_DIR / "model-files" / "mlartifacts")
     )
 
     # Logging Settings
@@ -167,7 +167,8 @@ class Settings(BaseSettings):
         env_file = ".env",
         env_file_encoding = "utf-8",
         case_sensitive = True,
-        protected_namespaces = ()  # Desativa namespaces protegidos para resolver o warning do model_version
+        protected_namespaces = (),  # Desativa namespaces protegidos para resolver o warning do model_version
+        extra = "allow"  # Allow extra fields
     )
 
 

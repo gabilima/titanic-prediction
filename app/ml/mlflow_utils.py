@@ -22,13 +22,16 @@ class MLflowManager:
         """Initialize MLflow manager."""
         # Set MLflow tracking and registry URIs
         mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
-        mlflow.set_registry_uri(settings.MLFLOW_REGISTRY_URI)
+        mlflow.set_registry_uri(settings.MLFLOW_TRACKING_URI)
         
         # Get or create experiment
         try:
             experiment = mlflow.get_experiment_by_name(settings.MLFLOW_EXPERIMENT_NAME)
             if experiment is None:
-                experiment_id = mlflow.create_experiment(settings.MLFLOW_EXPERIMENT_NAME)
+                experiment_id = mlflow.create_experiment(
+                    settings.MLFLOW_EXPERIMENT_NAME,
+                    artifact_location=settings.MLFLOW_ARTIFACT_LOCATION
+                )
             else:
                 experiment_id = experiment.experiment_id
             logger.info(f"Using existing experiment '{settings.MLFLOW_EXPERIMENT_NAME}' with ID: {experiment_id}")
@@ -44,7 +47,7 @@ class MLflowManager:
         
         # Store configuration
         self.tracking_uri = settings.MLFLOW_TRACKING_URI
-        self.registry_uri = settings.MLFLOW_REGISTRY_URI
+        self.registry_uri = settings.MLFLOW_TRACKING_URI
         self.experiment_name = settings.MLFLOW_EXPERIMENT_NAME
         self.model_name = settings.MLFLOW_MODEL_NAME
         

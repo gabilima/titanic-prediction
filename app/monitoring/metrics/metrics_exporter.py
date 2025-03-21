@@ -16,7 +16,7 @@ import prometheus_client
 from prometheus_client import Counter, Gauge, Histogram, Summary
 from prometheus_client.exposition import start_http_server
 from fastapi import FastAPI, Response
-from app.feature_store.monitoring import FeatureMonitoring
+from app.feature_store.validation.monitoring import FeatureMonitoring
 
 # Set up logging
 logger = logging.getLogger(__name__)

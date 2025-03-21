@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copy-model-files
+  namespace: titanic-prediction
+spec:
+  template:
+    spec:
+      containers:
+      - name: copy-model-files
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mkdir -p /app/models/mlruns
+          cp -r /workspace/models/* /app/models/
+          chmod -R 777 /app/models/
+        volumeMounts:
+        - name: model-volume
+          mountPath: /app/models
+        - name: workspace-volume
+          mountPath: /workspace
+      volumes:
+      - name: model-volume
+        persistentVolumeClaim:
+          claimName: titanic-models-pvc
+      - name: workspace-volume
+        hostPath:
+          path: /Users/gabilima/Documents/Cases/titanic-prediction
+      restartPolicy: Never 

@@ -10,7 +10,7 @@ from collections import deque
 import asyncio
 from functools import partial
 from app.ml.model import TitanicModel
-from app.ml.pipeline import load_pipeline, preprocess_input
+from app.ml.pipeline.pipeline import load_pipeline, preprocess_input
 from app.core.logging import get_logger
 from app.core.config import settings
 import pandas as pd
@@ -109,8 +109,7 @@ class ModelManager:
             if len(X.shape) == 1:
                 X = X.reshape(1, -1)
             
-            # Make prediction
-            probas = self.model.predict_proba(X)
+            # Make prediction            probas = self.model.predict_proba(X)
             
             # Log prediction details for debugging
             logger.info(f"Probabilities shape: {probas.shape}")

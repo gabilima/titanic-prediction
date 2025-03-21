@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: model-diagnostics
+  namespace: titanic-prediction
+spec:
+  containers:
+  - name: diagnostics
+    image: python:3.9-slim
+    command: ["/bin/bash", "-c"]
+    args:
+    - |
+      # Install required packages
+      pip install mlflow scikit-learn pandas numpy
+      
+      # Function to check and print file contents
+      check_file() {
+        echo "=== Checking $1 ==="
+        if [ -f "$1" ]; then
+          echo "File exists: $1"
+          cat "$1"
+        else
+          echo "File does not exist: $1"
+        fi
+      }
+      
+      # Function to check directory contents
+      check_dir() {
+        echo "=== Checking directory: $1 ==="
+        if [ -d "$1" ]; then
+          echo "Directory exists: $1"
+          ls -la "$1"
+        else
+          echo "Directory does not exist: $1"
+        fi
+      }
+      
+      # Check PVC contents
+      echo "=== Checking PVC Contents ==="
+      check_dir "/app/models"
+      
+      # Check MLflow files
+      echo "=== Checking MLflow Files ==="
+      check_dir "/app/models/mlruns"
+      
+      # Check model files
+      echo "=== Checking Model Files ==="
+      check_file "/app/models/titanic_model.joblib"
+      check_file "/app/models/MLmodel"
+      check_file "/app/models/conda.yaml"
+      check_file "/app/models/requirements.txt"
+      
+      # Check MLflow model registry
+      echo "=== Checking MLflow Model Registry ==="
+      python -c "
+      import mlflow
+      mlflow.set_tracking_uri('file:///app/models/mlruns')
+      client = mlflow.tracking.MlflowClient()
+      print('Registered Models:')
+      for rm in client.list_registered_models():
+          print(f'Model: {rm.name}')
+          print(f'Latest Versions:')
+          for mv in rm.latest_versions:
+              print(f'  - Version: {mv.version}')
+              print(f'    Stage: {mv.current_stage}')
+              print(f'    Status: {mv.status}')
+      "
+      
+      # Check model artifacts
+      echo "=== Checking Model Artifacts ==="
+      check_dir "/app/models/artifacts"
+      
+      # Check model metadata
+      echo "=== Checking Model Metadata ==="
+      check_file "/app/models/model_meta.yaml"
+      
+      # Check version information
+      echo "=== Checking Version Information ==="
+      check_file "/app/models/version_1.yaml"
+      check_file "/app/models/version_1_meta.yaml"
+      
+      echo "=== Diagnostics Complete ==="
+    volumeMounts:
+    - name: model-volume
+      mountPath: /app/models
+  volumes:
+  - name: model-volume
+    persistentVolumeClaim:
+      claimName: model-pvc
+  restartPolicy: Never 

@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: check-mlflow
+  namespace: titanic-prediction
+spec:
+  template:
+    spec:
+      containers:
+      - name: check-mlflow
+        image: titanic-prediction:latest
+        imagePullPolicy: Never
+        command: ["sh", "-c", "ls -R /app/models/mlruns"]
+        volumeMounts:
+        - name: model-volume
+          mountPath: /app/models
+      restartPolicy: Never
+      volumes:
+      - name: model-volume
+        persistentVolumeClaim:
+          claimName: titanic-models-pvc

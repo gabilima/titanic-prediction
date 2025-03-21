@@ -2,12 +2,16 @@ apiVersion: v1
 kind: Service
 metadata:
   name: titanic-prediction-service
+  namespace: titanic-prediction
   labels:
     app: titanic-prediction
     component: api
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+    prometheus.io/scheme: "http"
+    prometheus.io/interval: "15s"
 spec:
   type: LoadBalancer
   ports:

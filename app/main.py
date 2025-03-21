@@ -7,6 +7,8 @@ and A/B testing functionality.
 
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from prometheus_client import make_asgi_app, generate_latest, CONTENT_TYPE_LATEST
 import time
 import uvicorn
 from contextlib import asynccontextmanager
@@ -15,32 +17,23 @@ from datetime import datetime
 from typing import Dict, Optional
 from pydantic import BaseModel
 import mlflow
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import psutil
-
-from app.metrics_exporter import MetricsExporter
-from app.api.schemas.prediction import PredictionRequest, PredictionResponse, ABTestConfig
+import os
+import json
 
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.api.endpoints import predict, health
 from app.monitoring.metrics import (
-    record_request,
-    record_prediction,
-    MODEL_PREDICTION_COUNT,
-    PREDICTION_LATENCY,
-    update_memory_usage
+    get_prediction_count,
+    increment_prediction_counter,
+    record_prediction_latency,
+    get_system_metrics
 )
-from app.ml.ab_testing import ABTest
-from app.ml.mlflow_utils import MLflowManager
 
 # Configure logging
 configure_logging()
 logger = get_logger(__name__)
-
-# Initialize MLflow manager and A/B testing
-mlflow_manager = MLflowManager()
-ab_test = ABTest(mlflow_manager=mlflow_manager)
 
 # Initialize metrics exporter without predictor (we'll set it during startup)
 metrics_exporter = None
@@ -49,15 +42,10 @@ async def collect_metrics_periodically():
     """Collect metrics periodically."""
     while True:
         try:
-            if metrics_exporter:
-                # Collect feature metrics
-                await metrics_exporter.collect_feature_metrics()
-                
-                # Collect system metrics
-                process = psutil.Process()
-                memory_info = process.memory_info()
-                update_memory_usage(memory_info.rss)  # Record RSS memory usage
-                
+            # Collect system metrics
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            
             await asyncio.sleep(300)  # Collect every 5 minutes
         except Exception as e:
             logger.error(f"Error collecting metrics: {str(e)}")
@@ -69,45 +57,20 @@ async def lifespan(app: FastAPI):
     # Startup: load model and resources
     logger.info("Starting application, initializing resources")
     try:
-        # Initialize MLflow manager
-        app.state.mlflow_manager = MLflowManager()
-        logger.info("MLflow manager initialized successfully")
-
-        # Load model from MLflow
+        # Try loading from local file
         try:
-            model_uri = f"models:/{settings.MLFLOW_MODEL_NAME}/{settings.MLFLOW_MODEL_STAGE}"
-            app.state.model = mlflow.pyfunc.load_model(model_uri)
-            logger.info(f"Model loaded successfully from {model_uri}")
+            from app.ml.model import TitanicModel
+            model = TitanicModel()
+            model.load()
+            app.state.model = model
+            logger.info("Model loaded successfully from local file")
         except Exception as e:
-            logger.warning(f"Could not load model from MLflow registry: {str(e)}")
-            logger.info("Falling back to local model file")
-            from app.core.model import model
-            model.model.load()
-            app.state.model = model.model
-            logger.info("Local model loaded successfully")
-        
-        # Initialize metrics exporter with model
-        global metrics_exporter
-        metrics_exporter = MetricsExporter(app.state.model)
-        app.state.metrics_exporter = metrics_exporter
+            logger.error(f"Failed to load model from local file: {str(e)}")
+            raise RuntimeError(f"Failed to load model: {str(e)}")
         
         # Start metrics collection
         asyncio.create_task(collect_metrics_periodically())
         
-        # Set up initial A/B test with production model
-        latest_prod_version = app.state.mlflow_manager.get_latest_versions(
-            k=1,
-            stages=["Production"]
-        )
-        if latest_prod_version:
-            version = latest_prod_version[0]["version"]
-            ab_test.setup_test(
-                model_weights={version: 1.0},
-                description="Initial production deployment"
-            )
-            logger.info(f"Initialized A/B test with production model version {version}")
-        else:
-            logger.warning("No production model found for initial A/B test setup")
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}")
         raise
@@ -115,7 +78,6 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: clean up resources
     logger.info("Shutting down application")
-
 
 # Create FastAPI app
 app = FastAPI(
@@ -151,14 +113,6 @@ async def add_process_time_header(request: Request, call_next):
     process_time = time.time() - start_time
     process_time_ms = round(process_time * 1000, 2)
     
-    # Record metrics
-    record_request(
-        method=request.method,
-        endpoint=request.url.path,
-        status_code=response.status_code,
-        latency_seconds=process_time
-    )
-    
     request_logger.info(
         f"Request completed in {process_time_ms}ms",
         extra={
@@ -174,7 +128,7 @@ async def add_process_time_header(request: Request, call_next):
 
 # Include routers
 app.include_router(predict.router, prefix=settings.API_V1_STR)
-app.include_router(health.router, prefix=settings.API_V1_STR)
+app.include_router(health.router)  # Remove prefix for health endpoint
 
 # Root endpoint
 @app.get("/")
@@ -187,96 +141,11 @@ async def root():
         "docs_url": "/docs"
     }
 
-@app.post("/ab-test/configure")
-async def configure_ab_test(config: ABTestConfig):
-    """
-    Configure A/B test with new model weights.
-    
-    Args:
-        config: A/B test configuration including model weights
-    """
-    try:
-        ab_test.setup_test(
-            model_weights=config.model_weights,
-            description=config.description
-        )
-        return {"message": "A/B test configuration updated successfully"}
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Failed to configure A/B test: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to configure A/B test: {str(e)}"
-        )
-
-@app.get("/ab-test/results")
-async def get_ab_test_results():
-    """Get current A/B test results."""
-    try:
-        results = ab_test.get_test_results()
-        return {
-            "results": results,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        logger.error(f"Failed to get A/B test results: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get A/B test results: {str(e)}"
-        )
-
-@app.post("/model/promote/{version}/{stage}")
-async def promote_model(version: str, stage: str):
-    """
-    Promote a model version to a new stage.
-    
-    Args:
-        version: Model version to promote
-        stage: Target stage (Production/Staging)
-    """
-    try:
-        if stage not in ["Production", "Staging"]:
-            raise ValueError("Stage must be either 'Production' or 'Staging'")
-        
-        mlflow_manager.promote_model(
-            version=version,
-            stage=stage
-        )
-        return {
-            "message": f"Model version {version} promoted to {stage}",
-            "timestamp": datetime.now().isoformat()
-        }
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Failed to promote model: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to promote model: {str(e)}"
-        )
-
-# Add metrics endpoint
-@app.get("/metrics")
-async def metrics():
-    """Expose Prometheus metrics."""
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST
-    )
-
-# Start the application
 if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=settings.RELOAD,
-        workers=settings.WORKERS
+        reload=settings.DEBUG,
+        log_level="debug" if settings.DEBUG else "info"
     )

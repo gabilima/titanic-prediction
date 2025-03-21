@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-model-new
+  namespace: titanic-prediction
+spec:
+  template:
+    spec:
+      containers:
+      - name: register-model
+        image: titanic-prediction:latest
+        imagePullPolicy: Never
+        command: ["python", "-c", "import mlflow, joblib; mlflow.set_tracking_uri(\"file:///app/models/mlruns\"); mlflow.set_experiment(\"titanic_survival_prediction\"); model = joblib.load(\"/app/models/titanic_model.joblib\"); run = mlflow.start_run(); mlflow.sklearn.log_model(model, \"model\", registered_model_name=\"titanic_model\"); print(f\"Model registered with run ID: {run.info.run_id}\"); mlflow.end_run()"]
+        volumeMounts:
+        - name: model-volume
+          mountPath: /app/models
+      restartPolicy: Never
+      volumes:
+      - name: model-volume
+        persistentVolumeClaim:
+          claimName: titanic-models-pvc

@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: titanic-prediction-network-policy
+  namespace: titanic-prediction
 spec:
   podSelector:
     matchLabels:
@@ -13,18 +14,28 @@ spec:
   - from:
     - namespaceSelector:
         matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+      name: metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
           name: ingress-nginx
     ports:
     - protocol: TCP
       port: 8000
-  - from:
+      name: http
+  egress:
+  - to:
     - namespaceSelector:
         matchLabels:
           name: monitoring
     ports:
     - protocol: TCP
-      port: 8000
-  egress:
+      port: 9090
+      name: metrics
   - to:
     - namespaceSelector:
         matchLabels:
@@ -32,10 +43,4 @@ spec:
     ports:
     - protocol: TCP
       port: 5000
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: feature-store
-    ports:
-    - protocol: TCP
-      port: 5432 
+      name: mlflow 

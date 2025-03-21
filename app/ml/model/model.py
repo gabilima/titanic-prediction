@@ -26,6 +26,7 @@ class TitanicModel:
             random_state=settings.MODEL_RANDOM_STATE
         )
         self.pipeline = None
+        self.version = "1.0.0"  # Adding version attribute
         
         # Calculate expected numerical features
         numerical_features = [f for f in settings.NUMERICAL_FEATURES if f in settings.REQUIRED_FEATURES]
@@ -262,113 +263,78 @@ class TitanicModel:
         logger.info("Loading model")
         
         try:
-            # Try loading from MLflow first
-            if model_version is None:
-                # If no version is specified, try loading from production stage
-                model_uri = f"models:/{settings.MLFLOW_MODEL_NAME}/Production"
-            elif isinstance(model_version, (str, Path)):
-                # If a local file path is provided, load from it using joblib
-                logger.info(f"Loading model from local file: {model_version}")
-                self.model = joblib.load(model_version)
-                
-                # Calculate expected numerical features
-                numerical_features = [f for f in settings.NUMERICAL_FEATURES if f in settings.REQUIRED_FEATURES]
-                # Ensure Pclass is treated as categorical
-                if "Pclass" in numerical_features:
-                    numerical_features.remove("Pclass")
-                self.expected_numerical = len(numerical_features)  # Age, Fare, SibSp, Parch
-                
-                # Calculate expected categorical features after one-hot encoding
-                categorical_features = ['Pclass', 'Sex', 'Embarked']  # Define explicit order
-                self.expected_categorical = 0
-                
-                # Calculate categorical dimensions
-                for feature in categorical_features:
-                    # For each categorical feature, we get n binary columns (since we don't use drop='first')
-                    categories = settings.CATEGORICAL_VALUES[feature]
-                    if feature == 'Pclass':  # Pclass has 3 categories -> 2 binary columns
-                        dims = 2
-                    elif feature == 'Sex':  # Sex has 2 categories -> 1 binary column
-                        dims = 1
-                    elif feature == 'Embarked':  # Embarked has 3 categories -> 2 binary columns
-                        dims = 2
-                    self.expected_categorical += dims
-                
-                # Update total expected features
-                self.expected_features = self.expected_numerical + self.expected_categorical
-                
-                # Verify model's feature count matches our expectations
-                if not hasattr(self.model, 'n_features_in_'):
-                    raise ValueError("Loaded model has no feature count information")
-                
-                if self.model.n_features_in_ != self.expected_features:
-                    raise ValueError(
-                        f"Loaded model expects {self.model.n_features_in_} features but our preprocessing "
-                        f"pipeline generates {self.expected_features} features "
-                        f"({self.expected_numerical} numerical + {self.expected_categorical} categorical). "
-                        "This indicates a mismatch between the model and preprocessing pipeline."
-                    )
-                
-                logger.info(f"Model loaded successfully with {self.expected_features} features "
-                          f"({self.expected_numerical} numerical + {self.expected_categorical} categorical)")
-                return
+            # Try loading from local file first
+            local_model_path = settings.MODEL_PATH / settings.DEFAULT_MODEL_FILENAME
+            if local_model_path.exists():
+                logger.info(f"Loading model from local file: {local_model_path}")
+                self.model = joblib.load(local_model_path)
+                logger.info("Successfully loaded model from local file")
             else:
-                # If a version number is provided, use it
-                model_uri = f"models:/{settings.MLFLOW_MODEL_NAME}/{model_version}"
+                # If local file doesn't exist, try MLflow
+                try:
+                    # If no version is specified, try loading from production stage
+                    if model_version is None:
+                        model_uri = f"models:/{settings.MLFLOW_MODEL_NAME}/Production"
+                    else:
+                        # If a version number is provided, use it
+                        model_uri = f"models:/{settings.MLFLOW_MODEL_NAME}/{model_version}"
+                    
+                    logger.info(f"Attempting to load model from MLflow: {model_uri}")
+                    mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
+                    self.model = mlflow.pyfunc.load_model(model_uri)
+                    logger.info("Successfully loaded model from MLflow")
+                except Exception as e:
+                    logger.warning(f"Failed to load model from MLflow: {str(e)}")
+                    raise FileNotFoundError(f"Model not found in local file or MLflow: {str(e)}")
             
-            try:
-                logger.info(f"Attempting to load model from MLflow: {model_uri}")
-                mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
-                self.model = mlflow.sklearn.load_model(model_uri)
-                
-                # Calculate expected numerical features
-                numerical_features = [f for f in settings.NUMERICAL_FEATURES if f in settings.REQUIRED_FEATURES]
-                # Ensure Pclass is treated as categorical
-                if "Pclass" in numerical_features:
-                    numerical_features.remove("Pclass")
-                self.expected_numerical = len(numerical_features)  # Age, Fare, SibSp, Parch
-                
-                # Calculate expected categorical features after one-hot encoding
-                categorical_features = ['Pclass', 'Sex', 'Embarked']  # Define explicit order
-                self.expected_categorical = 0
-                
-                # Calculate categorical dimensions
-                for feature in categorical_features:
-                    # For each categorical feature, we get n binary columns (since we don't use drop='first')
-                    categories = settings.CATEGORICAL_VALUES[feature]
-                    if feature == 'Pclass':  # Pclass has 3 categories -> 2 binary columns
-                        dims = 2
-                    elif feature == 'Sex':  # Sex has 2 categories -> 1 binary column
-                        dims = 1
-                    elif feature == 'Embarked':  # Embarked has 3 categories -> 2 binary columns
-                        dims = 2
-                    self.expected_categorical += dims
-                
-                # Update total expected features
-                self.expected_features = self.expected_numerical + self.expected_categorical
-                
-                # Verify model's feature count matches our expectations
-                if not hasattr(self.model, 'n_features_in_'):
-                    raise ValueError("Loaded model has no feature count information")
-                
-                if self.model.n_features_in_ != self.expected_features:
-                    raise ValueError(
-                        f"Loaded model expects {self.model.n_features_in_} features but our preprocessing "
-                        f"pipeline generates {self.expected_features} features "
-                        f"({self.expected_numerical} numerical + {self.expected_categorical} categorical). "
-                        "This indicates a mismatch between the model and preprocessing pipeline."
-                    )
-                
-                logger.info(f"Model loaded successfully with {self.expected_features} features "
-                          f"({self.expected_numerical} numerical + {self.expected_categorical} categorical)")
-                
-            except Exception as e:
-                logger.warning(f"Failed to load model from MLflow: {str(e)}")
-                raise
+            # Calculate expected numerical features
+            numerical_features = [f for f in settings.NUMERICAL_FEATURES if f in settings.REQUIRED_FEATURES]
+            # Ensure Pclass is treated as categorical
+            if "Pclass" in numerical_features:
+                numerical_features.remove("Pclass")
+            self.expected_numerical = len(numerical_features)  # Age, Fare, SibSp, Parch
+            
+            # Calculate expected categorical features after one-hot encoding
+            categorical_features = ['Pclass', 'Sex', 'Embarked']  # Define explicit order
+            self.expected_categorical = 0
+            
+            # Calculate categorical dimensions
+            for feature in categorical_features:
+                # For each categorical feature, we get n binary columns (since we don't use drop='first')
+                categories = settings.CATEGORICAL_VALUES[feature]
+                if feature == 'Pclass':  # Pclass has 3 categories -> 2 binary columns
+                    dims = 2
+                elif feature == 'Sex':  # Sex has 2 categories -> 1 binary column
+                    dims = 1
+                elif feature == 'Embarked':  # Embarked has 3 categories -> 2 binary columns
+                    dims = 2
+                self.expected_categorical += dims
+            
+            # Update total expected features
+            self.expected_features = self.expected_numerical + self.expected_categorical
+            
+            # Verify model's feature count matches our expectations
+            if not hasattr(self.model, 'n_features_in_'):
+                raise ValueError("Loaded model has no feature count information")
+            
+            if self.model.n_features_in_ != self.expected_features:
+                raise ValueError(
+                    f"Loaded model expects {self.model.n_features_in_} features but our preprocessing "
+                    f"pipeline generates {self.expected_features} features "
+                    f"({self.expected_numerical} numerical + {self.expected_categorical} categorical). "
+                    "This indicates a mismatch between the model and preprocessing pipeline."
+                )
+            
+            logger.info(f"Model loaded successfully with {self.expected_features} features "
+                      f"({self.expected_numerical} numerical + {self.expected_categorical} categorical)")
             
         except Exception as e:
             logger.error(f"Error during model loading: {str(e)}")
             raise RuntimeError(f"Failed to load model: {str(e)}")
+
+    def get_version(self) -> str:
+        """Get the model version."""
+        return self.version
 
 def get_model() -> TitanicModel:
     """Get model instance, loading from disk if model exists."""

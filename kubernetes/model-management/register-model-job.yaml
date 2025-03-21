@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-model
+  namespace: titanic-prediction
+spec:
+  template:
+    spec:
+      containers:
+      - name: register-model
+        image: titanic-prediction:latest
+        imagePullPolicy: Never
+        command: ["python", "-c", "from app.ml.mlflow_utils import MLflowManager; from app.core.config import settings; import mlflow; mlflow.set_tracking_uri(\"file:///app/models/mlruns\"); mlflow.register_model(\"runs:/01ab41941f774e05918d3db7de9a3941/model\", \"titanic_model\")"]
+        volumeMounts:
+        - name: model-volume
+          mountPath: /app/models
+      restartPolicy: Never
+      volumes:
+      - name: model-volume
+        persistentVolumeClaim:
+          claimName: titanic-models-pvc
