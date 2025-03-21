@@ -155,3 +155,6 @@ models/*.pkl
 # Prometheus & Grafana
 prometheus/
 grafana/data/
+
+# Environment variables
+.env
