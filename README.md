@@ -101,6 +101,9 @@ RESTful API with comprehensive endpoints:
 git clone https://github.com/gabilima/titanic-prediction.git
 cd titanic-prediction
 
+# Set up environment
+./setup.sh
+
 # Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
