@@ -1,0 +1,21 @@
+{
+    "run_id": "c150c4680b994ee2afc832e1ff79004a",
+    "experiment_name": "titanic_prediction",
+    "metrics": {
+        "accuracy": 0.7039106145251397,
+        "precision": 0.5975609756097561,
+        "recall": 0.7101449275362319,
+        "f1": 0.6490066225165563,
+        "roc_auc": 0.792094861660079
+    },
+    "parameters": {
+        "n_estimators": 200,
+        "max_depth": 8,
+        "min_samples_split": 5,
+        "min_samples_leaf": 4,
+        "max_features": "sqrt",
+        "random_state": 42,
+        "class_weight": "balanced_subsample",
+        "n_jobs": -1
+    }
+}

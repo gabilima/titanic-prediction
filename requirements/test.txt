@@ -1,0 +1,11 @@
+# Testing dependencies
+pytest==7.3.1
+pytest-cov==4.1.0
+pytest-mock==3.10.0
+pytest-asyncio==0.21.0
+httpx==0.24.0
+factory-boy==3.2.1
+pytest-xdist==3.3.1
+fakeredis==2.10.3
+pytest-env==0.8.1
+

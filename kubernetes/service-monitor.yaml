@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: titanic-prediction-monitor
+  namespace: monitoring
+  labels:
+    app: titanic-prediction
+    release: prometheus  # This should match your Prometheus Operator release label
+spec:
+  selector:
+    matchLabels:
+      app: titanic-prediction
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 15s  # Scrape interval
+    scrapeTimeout: 10s  # Timeout for each scrape
+  namespaceSelector:
+    matchNames:
+    - default  # Namespace where your app is deployed
+  # Optional TLS configuration
+  # tlsConfig:
+  #   insecureSkipVerify: false
+  #   caFile: /path/to/ca
+  #   certFile: /path/to/cert
+  #   keyFile: /path/to/key
+  #   serverName: example.com
+

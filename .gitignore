@@ -1,0 +1,124 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Local development
+.env
+.env.local
+*.db
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Data
+data/raw/
+data/processed/
+*.csv
+*.h5
+
+# Model files
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.onnx
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+
+# Mac OS
+.DS_Store
+
+# Docker
+.docker/
+
+# Distribution / packaging
+.Python
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+nosetests.xml
+
+# OS specific
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+app/core/__pycache__/
+app/api/__pycache__/
+app/ml/__pycache__/
+app/monitoring/__pycache__/
+feature_store/__pycache__/
+tests/__pycache__/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Local development configuration
+config.local.yaml
+*.local.yaml
+*.local.yml
+
+# Credentials and secrets
+*.pem
+*.key
+*.crt
+*.cert
+secrets.yaml
+.env.*
+
+# Dependencies
+node_modules/
