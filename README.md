@@ -54,9 +54,7 @@ RESTful API with comprehensive endpoints:
 
 2. **Health & Monitoring**
    ```http
-   GET /health
    GET /api/v1/health
-   GET /metrics
    GET /api/v1/model/metrics
    ```
 
