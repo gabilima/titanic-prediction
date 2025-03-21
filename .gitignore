@@ -83,8 +83,6 @@ Thumbs.db
 .docker/
 .dockerignore
 
-# Project specific files
-case_description.md
 
 # Terraform
 .terraform/
