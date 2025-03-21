@@ -234,6 +234,37 @@ The project includes comprehensive test suites:
 
 ## Monitoring & Metrics
 
+The project implements comprehensive monitoring using Prometheus and Grafana:
+
+1. **Grafana Dashboards**
+   - **API Monitoring Dashboard**
+     - Request rate tracking
+     - Average response time monitoring
+     - Request counts by endpoint
+   
+   - **Model Monitoring Dashboard**
+     - Prediction rate by model version
+     - Model prediction latency
+     - Feature drift monitoring
+     - Feature store health status
+   
+   - **System Monitoring Dashboard**
+     - Memory usage tracking
+     - Resource utilization trends
+
+2. **Prometheus Alert Rules**
+   - **API Health**
+     - High latency alerts (>500ms for 5 minutes)
+     - High error rate alerts (>5% for 5 minutes)
+   
+   - **Model Health**
+     - Feature drift detection (>0.3 for 15 minutes)
+     - Feature store component health
+     - High model latency (>100ms for 5 minutes)
+   
+   - **System Health**
+     - High memory usage alerts (>500MB)
+
 Available metrics at `/metrics`:
 ```json
 {
@@ -246,9 +277,38 @@ Available metrics at `/metrics`:
   "feature_drift_scores": {
     "age": 0.02,
     "fare": 0.05
+  },
+  "feature_store_health": {
+    "drift_detection": 1,
+    "data_quality": 1,
+    "alerting": 1
+  },
+  "model_predictions": {
+    "total": 500,
+    "survived": 150,
+    "not_survived": 350
   }
 }
 ```
+
+### Monitoring Setup
+
+1. **Apply Monitoring Configurations**
+```bash
+# Apply Grafana dashboards and Prometheus rules
+kubectl apply -f kubernetes/grafana-dashboards.yaml
+kubectl apply -f kubernetes/prometheus-rules.yaml
+```
+
+2. **Access Dashboards**
+   - Open Grafana UI
+   - Navigate to Dashboards
+   - Look for dashboards tagged with "titanic-prediction"
+
+3. **Alert Management**
+   - Alerts are managed through Prometheus Alertmanager
+   - Critical alerts are sent to configured notification channels
+   - Alert status can be viewed in Grafana's Alert UI
 
 ## Error Handling
 

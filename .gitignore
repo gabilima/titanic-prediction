@@ -24,6 +24,7 @@ wheels/
 venv/
 ENV/
 env/
+.env
 
 # Python Version Management
 .python-version
@@ -39,8 +40,11 @@ env/
 logs/
 
 # Local development
-.env
+.DS_Store
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.db
 
 # MLflow
@@ -50,8 +54,12 @@ mlartifacts/
 # Data
 data/raw/
 data/processed/
+data/interim/
 *.csv
+*.sqlite
 *.h5
+*.hdf5
+*.ckpt
 
 # Model files
 *.pkl
@@ -70,8 +78,10 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+nosetests.xml
 coverage.xml
 *.cover
+.hypothesis/
 
 # Mac OS
 .DS_Store
@@ -131,3 +141,17 @@ secrets.yaml
 
 # Dependencies
 node_modules/
+
+# Test directories
+test_model_dir/
+
+# ML specific
+models/*.joblib
+models/*.pkl
+*.h5
+*.hdf5
+*.ckpt
+
+# Prometheus & Grafana
+prometheus/
+grafana/data/

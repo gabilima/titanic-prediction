@@ -15,6 +15,8 @@ from datetime import datetime
 from typing import Dict, Optional
 from pydantic import BaseModel
 import mlflow
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+import psutil
 
 from app.metrics_exporter import MetricsExporter
 from app.api.schemas.prediction import PredictionRequest, PredictionResponse, ABTestConfig
@@ -22,7 +24,13 @@ from app.api.schemas.prediction import PredictionRequest, PredictionResponse, AB
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.api.endpoints import predict, health
-from app.monitoring.metrics import record_request
+from app.monitoring.metrics import (
+    record_request,
+    record_prediction,
+    MODEL_PREDICTION_COUNT,
+    PREDICTION_LATENCY,
+    update_memory_usage
+)
 from app.ml.ab_testing import ABTest
 from app.ml.mlflow_utils import MLflowManager
 
@@ -42,7 +50,14 @@ async def collect_metrics_periodically():
     while True:
         try:
             if metrics_exporter:
+                # Collect feature metrics
                 await metrics_exporter.collect_feature_metrics()
+                
+                # Collect system metrics
+                process = psutil.Process()
+                memory_info = process.memory_info()
+                update_memory_usage(memory_info.rss)  # Record RSS memory usage
+                
             await asyncio.sleep(300)  # Collect every 5 minutes
         except Exception as e:
             logger.error(f"Error collecting metrics: {str(e)}")
@@ -184,6 +199,8 @@ async def predict(request: PredictionRequest) -> PredictionResponse:
         Prediction response including survival probability and model details
     """
     try:
+        start_time = time.time()
+        
         # Select model version based on A/B test configuration
         model_version = ab_test.select_model_version()
         model = mlflow_manager.load_model(model_version)
@@ -201,6 +218,11 @@ async def predict(request: PredictionRequest) -> PredictionResponse:
         # Make prediction
         prediction = float(model.predict_proba([features])[0][1])
         
+        # Record prediction metrics
+        prediction_time = time.time() - start_time
+        from app.monitoring.metrics import record_prediction
+        record_prediction(prediction >= 0.5, prediction_time)
+        
         # Log prediction for A/B testing
         ab_test.log_prediction(
             model_version=model_version,
@@ -210,6 +232,16 @@ async def predict(request: PredictionRequest) -> PredictionResponse:
                 "timestamp": datetime.now().isoformat()
             }
         )
+        
+        # Record model metrics
+        MODEL_PREDICTION_COUNT.labels(
+            model_version=model_version,
+            prediction="survived" if prediction >= 0.5 else "died"
+        ).inc()
+        
+        PREDICTION_LATENCY.labels(
+            model_version=model_version
+        ).observe(prediction_time)
         
         return PredictionResponse(
             prediction=prediction,
@@ -299,6 +331,15 @@ async def promote_model(version: str, stage: str):
             status_code=500,
             detail=f"Failed to promote model: {str(e)}"
         )
+
+# Add metrics endpoint
+@app.get("/metrics")
+async def metrics():
+    """Expose Prometheus metrics."""
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 # Start the application
 if __name__ == "__main__":
